@@ -1,0 +1,67 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.bmuschko:gradle-docker-plugin:3.1.0'
+    }
+}
+
+apply plugin: com.bmuschko.gradle.docker.DockerRemoteApiPlugin
+
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerPushImage
+
+docker {
+    registryCredentials {
+        url = 'https://index.docker.io/v1/'
+        username = project.hasProperty('dockerRegistryUsername') ? project.getProperty('dockerRegistryUsername') : 'ep6team'
+        password = project.hasProperty('dockerRegistryPassword') ? project.getProperty('dockerRegistryPassword') : null
+    }
+}
+
+task createDockerfile(type: Dockerfile) {
+    ext {
+        libDirRelativePathFileglob =  "${jar.destinationDir.absolutePath - buildDir.absolutePath}/*"
+        installationDir = "/opt/sso-partner-mock/"
+    }
+    destFile = file "${buildDir}/Dockerfile"
+
+    from 'vertx/vertx3'
+    
+    runCommand "mkdir -p $installationDir"
+    // use relative path to Dockerfile
+    copyFile libDirRelativePathFileglob, installationDir
+
+    environmentVariable([
+        VERTICLE_HOME: installationDir,
+        CLASSPATH: "$installationDir*"
+    ])
+    workingDir '$VERTICLE_HOME'
+
+    entryPoint 'vertx', 'run', mainVerticleName, '-conf', 'config.json'
+}
+
+task copyDist(type: Copy) {
+    from configurations.runtime
+    into jar.destinationDir
+}
+
+task buildImage(type: DockerBuildImage) {
+    dependsOn createDockerfile, copyDist
+    mustRunAfter test
+    inputDir = createDockerfile.destFile.parentFile
+    tag = "epages/sso-partner-mock:${version}"
+}
+
+task pushImage(type: DockerPushImage) {
+    dependsOn buildImage
+    imageName = "epages/sso-partner-mock:${version}"
+    doFirst {
+        println "Configured docker credentials for user '${dockerRegistryUsername}'"
+    }
+}
+
+[assemble, assembleDist, startScripts, distTar, distZip, installDist]*.enabled = false
+build.dependsOn pushImage

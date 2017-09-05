@@ -11,13 +11,12 @@ plugins {
     id 'java'
     id 'application'
     id 'org.flywaydb.flyway' version '4.1.2'
-    id 'com.github.johnrengelman.shadow' version '1.2.3'
     id 'eclipse'
 }
 
 version = '0.5'
 sourceCompatibility = '1.8'
-def vertxVersion = '3.4.1'
+def vertxVersion = '3.4.2'
 
 repositories {
     jcenter()
@@ -34,20 +33,24 @@ dependencies {
     testCompile "io.vertx:vertx-unit:${vertxVersion}"
     testCompile 'com.github.stefanbirkner:system-rules:1.16.0'
 
+    // needed also by PostgreSQL
     runtime 'ch.qos.logback:logback-classic:1.2.2'
 }
 
 ext {
     configFileName = project.hasProperty('configFileName') ? project.getProperty('configFileName') : 'config.test.json'
     configFile = file configFileName
-    databaseConfig = new groovy.json.JsonSlurper().parse(configFile).database
-    vertxLoggingSystemProperties = [
-        "vertx.logger-delegate-factory-class-name": "io.vertx.core.logging.SLF4JLogDelegateFactory"
-    ]
+    configurationAtBuildTime = new groovy.json.JsonSlurper().parse configFile
+    databaseConfig = configurationAtBuildTime.database
+    // vertxLoggingSystemProperties = [
+    //     'java.util.logging.config.file': 'logging.properties'
+    // ]
+    mainVerticleName = 'de.thokari.epages.app.EpagesAppMainVerticle'
 }
 
-def mainVerticleName = 'de.thokari.epages.app.EpagesAppMainVerticle'
 mainClassName = 'io.vertx.core.Launcher'
+
+apply from: 'gradle/docker.gradle'
 
 // Vert.x will watch for file changes in this location
 def watchForChange = "src/**/*.java,${configFile}"
@@ -62,7 +65,7 @@ run {
         "--redeploy=$watchForChange",
         "--on-redeploy=$doOnChange"
     ]
-    systemProperties = vertxLoggingSystemProperties
+    // systemProperties = vertxLoggingSystemProperties
     doFirst {
         println "Using arguments: ${args}"
     }
@@ -74,20 +77,7 @@ flyway {
     password = databaseConfig.password
 }
 
-shadowJar {
-    classifier = 'fat'
-    manifest {
-        attributes 'Main-Verticle': mainVerticleName
-    }
-    mergeServiceFiles {
-        include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
-    }
-}
-
 test {
     dependsOn flywayClean, flywayMigrate
-    systemProperties = vertxLoggingSystemProperties
+    // systemProperties = vertxLoggingSystemProperties
 }
-
-[jar, assembleDist, distTar, distZip, installDist]*.enabled = false
-build.dependsOn shadowJar

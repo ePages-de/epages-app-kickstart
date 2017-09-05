@@ -1,16 +1,4 @@
-<configuration>
+<!-- Logback is required by PostgreSQL, that's why we need to include it, -->
+<!-- but we use an empty configuration file to disable it -->
 
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>[%-5level] %logger{0} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <root level="DEBUG">
-        <appender-ref ref="STDOUT" />
-    </root>
-
-    <!-- TODO Does not work like this for unknown reasons -->
-    <logger name="de.thokari.epages.app" level="DEBUG" additivity="false" />
-
-</configuration>
+<configuration />
