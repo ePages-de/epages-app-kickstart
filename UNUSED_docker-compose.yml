@@ -1,0 +1,23 @@
+version: '2'
+
+networks:
+    sso-partner:
+
+services:
+    sso-partner-mock:
+        image: epages/sso-partner-mock:0.5
+        volumes:
+            - .:/opt/sso-partner-mock/config
+        ports:
+            - "127.0.0.1:8080:8080"
+        networks:
+            - sso-partner
+
+    database:
+        image: postgres:9.4
+        environment:
+            - POSTGRES_PASSWORD=secret
+        ports:
+            - "5432:5432"
+        networks:
+            - sso-partner

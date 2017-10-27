@@ -12,9 +12,9 @@
         "host": "localhost",
         "port": 5432,
         "maxPoolSize": 10,
-        "username": "vertx",
-        "password": "vertx",
-        "database": "epages-app-test",
+        "username": "postgres",
+        "password": "secret",
+        "database": "postgres",
         "charset": "utf-8",
         "queryTimeout": 2000
     }

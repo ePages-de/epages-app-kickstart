@@ -23,24 +23,28 @@ docker {
 
 task createDockerfile(type: Dockerfile) {
     ext {
-        libDirRelativePathFileglob =  "${jar.destinationDir.absolutePath - buildDir.absolutePath}/*"
+        libDirRelativePath =  jar.destinationDir.absolutePath - buildDir.absolutePath
+        migrationDirRelativePath = "${processResources.destinationDir.absolutePath}/db/migration" - buildDir.absolutePath
         installationDir = "/opt/sso-partner-mock/"
+        migrationDir = "${installationDir}migration/"
     }
+
     destFile = file "${buildDir}/Dockerfile"
 
     from 'vertx/vertx3'
-    
-    runCommand "mkdir -p $installationDir"
-    // use relative path to Dockerfile
-    copyFile libDirRelativePathFileglob, installationDir
+
+    runCommand "mkdir -p ${installationDir}"
+    runCommand "mkdir -p ${migrationDir}"
+    // use relative paths to Dockerfile
+    copyFile "${libDirRelativePath}/*", installationDir
+    copyFile "${migrationDirRelativePath}/*", migrationDir
 
     environmentVariable([
         VERTICLE_HOME: installationDir,
-        CLASSPATH: "$installationDir*"
+        CLASSPATH: "${installationDir}*"
     ])
     workingDir '$VERTICLE_HOME'
-
-    entryPoint 'vertx', 'run', mainVerticleName, '-conf', 'config.json'
+    entryPoint 'vertx', 'run', mainVerticleName, '-conf', 'config/config.json'
 }
 
 task copyDist(type: Copy) {
@@ -53,13 +57,15 @@ task buildImage(type: DockerBuildImage) {
     mustRunAfter test
     inputDir = createDockerfile.destFile.parentFile
     tag = "epages/sso-partner-mock:${version}"
+
 }
 
 task pushImage(type: DockerPushImage) {
     dependsOn buildImage
-    imageName = "epages/sso-partner-mock:${version}"
+    imageName = 'epages/sso-partner-mock'
+    tag = version
     doFirst {
-        println "Configured docker credentials for user '${dockerRegistryUsername}'"
+        println "Using docker credentials for '${dockerRegistryUsername}'"
     }
 }
 
