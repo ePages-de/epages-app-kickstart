@@ -7,6 +7,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -25,25 +26,20 @@ public class EpagesApiClientVerticle extends AbstractVerticle {
         vertx.eventBus().<JsonObject>consumer(EVENT_BUS_ADDRESS).handler(message -> {
             JsonObject payload = message.body();
 
-            String action = payload.getString("action");
-            String apiUrl = payload.getString("apiUrl");
-            String token = payload.getString("token");
+            final String apiUrl = payload.getString("apiUrl");
+            final String path = payload.getString("path");
 
-            String requestUrl = null;
-            switch (action) {
-                case "shop-info" :
-                    requestUrl = apiUrl;
-                    break;
-                case "singlesignon" :
-                    requestUrl = apiUrl + "/singlesignon";
-                    break;
-            }
+            final String finalRequestUrl = apiUrl + (path != null ? "/" + path : "");
+            final String token = payload.getString("token");
 
-            final String finalRequestUrl = requestUrl;
+            final String methodName = payload.getString("method");
+            final HttpMethod method = methodName != null ? HttpMethod.valueOf(methodName) : HttpMethod.GET;
+
+            final String body = payload.getString("body");
 
             LOG.info(String.format("Requesting API at '%s'", finalRequestUrl));
 
-            makeApiRequest(finalRequestUrl, token).setHandler(response -> {
+            makeApiRequest(finalRequestUrl, token, method, body).setHandler(response -> {
                 if (response.failed()) {
                     String errorMsg = String.format("API request to '%s' failed because of '%s'", finalRequestUrl,
                         response.cause().getMessage());
@@ -62,6 +58,10 @@ public class EpagesApiClientVerticle extends AbstractVerticle {
     }
 
     private Future<JsonObject> makeApiRequest(String apiUrl, String token) {
+        return makeApiRequest(apiUrl, token, null, null);
+    }
+
+    private Future<JsonObject> makeApiRequest(String apiUrl, String token, HttpMethod method, String input) {
         Future<JsonObject> future = Future.future();
 
         URL url = null;
@@ -78,20 +78,23 @@ public class EpagesApiClientVerticle extends AbstractVerticle {
             .setHost(url.getHost())
             .setURI(url.getPath());
 
-        HttpClientRequest request = client.get(options, response -> {
+        HttpClientRequest request = client.request(method, options, response -> {
             response.exceptionHandler(exception -> future.fail(exception));
             Boolean responseIsOk = String.valueOf(response.statusCode()).startsWith("2")
                 || String.valueOf(response.statusCode()).startsWith("3");
-            response.bodyHandler(body -> {
+            response.bodyHandler(output -> {
                 if (responseIsOk) {
-                    future.complete(body.toJsonObject());
+                    future.complete(output.toJsonObject());
                 } else {
-                    future.fail(body.toString());
+                    future.fail(output.toString());
                 }
             });
         });
         if (token != null) {
             request.headers().add("Authorization", "Bearer " + token);
+        }
+        if (input != null) {
+            request.write(input);
         }
         request.exceptionHandler(exception -> future.fail(exception));
         request.end();

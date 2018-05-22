@@ -79,5 +79,6 @@ flyway {
 
 test {
     dependsOn flywayClean, flywayMigrate
+    outputs.upToDateWhen { false }
     // systemProperties = vertxLoggingSystemProperties
 }
