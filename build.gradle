@@ -22,6 +22,20 @@ repositories {
     jcenter()
 }
 
+configurations {
+    endToEndCompile {
+        extendsFrom testCompile
+    }
+}
+
+sourceSets {
+    endToEnd {
+        java.srcDirs = [ 'src/end-to-end/java' ]
+        compileClasspath += sourceSets.test.compileClasspath
+        runtimeClasspath += sourceSets.test.runtimeClasspath
+    }
+}
+
 dependencies {
     compile "io.vertx:vertx-core:${vertxVersion}"
     compile "io.vertx:vertx-web:${vertxVersion}"
@@ -81,4 +95,9 @@ test {
     dependsOn flywayClean, flywayMigrate
     outputs.upToDateWhen { false }
     // systemProperties = vertxLoggingSystemProperties
+}
+
+task endToEndTest(type: Test) {
+    testClassesDir = sourceSets.endToEnd.output.classesDir
+    classpath = sourceSets.endToEnd.runtimeClasspath
 }
