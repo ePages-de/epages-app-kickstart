@@ -17,5 +17,7 @@
         "database": "epages-app",
         "charset": "utf-8",
         "queryTimeout": 2000
-    }
+    },
+
+    "httpClientTimeout": 10000
 }

@@ -23,6 +23,8 @@ public class AppConfig extends Config {
 
     public DatabaseConfig database;
 
+    public Integer httpClientTimeout;
+
     @JsonCreator
     public AppConfig(
         @JsonProperty("clientId") String clientId,
@@ -33,7 +35,8 @@ public class AppConfig extends Config {
         @JsonProperty("appStaticPath") String appStaticPath,
         @JsonProperty("appApiPath") String appApiPath,
         @JsonProperty("callbackPath") String callbackPath,
-        @JsonProperty("database") DatabaseConfig database) {
+        @JsonProperty("database") DatabaseConfig database,
+        @JsonProperty("database") Integer httpClientTimeout) {
 
         this.clientId = validate("clientId", overrideFromEnv("CLIENT_ID", clientId));
         this.clientSecret = validate("clientSecret", overrideFromEnv("CLIENT_SECRET", clientSecret));
@@ -44,5 +47,7 @@ public class AppConfig extends Config {
         this.appApiPath = validate("appApiPath", overrideFromEnv("APP_API_PATH", appApiPath));
         this.callbackPath = validate("callbackPath", overrideFromEnv("APP_CALLBACK_PATH", callbackPath));
         this.database = database;
+        this.httpClientTimeout = validate("httpClientTimeout",
+            overrideFromEnv("HTTP_CLIENT_TIMEOUT", httpClientTimeout, Integer.class));
     }
 }

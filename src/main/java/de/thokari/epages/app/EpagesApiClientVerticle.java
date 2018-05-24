@@ -6,6 +6,7 @@ import java.net.URL;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;
@@ -15,13 +16,15 @@ import io.vertx.core.logging.LoggerFactory;
 
 public class EpagesApiClientVerticle extends AbstractVerticle {
 
-    public static final String EVENT_BUS_ADDRESS = "api_client";
+    public static final String EVENT_BUS_ADDRESS = "epages-api-client";
     private static final Logger LOG = LoggerFactory.getLogger(EpagesApiClientVerticle.class);
     private HttpClient client;
 
     public void start() {
 
-        client = vertx.createHttpClient();
+        HttpClientOptions options = new HttpClientOptions();
+        options.setConnectTimeout(config().getInteger("httpClientTimeout"));
+        client = vertx.createHttpClient(options);
 
         vertx.eventBus().<JsonObject>consumer(EVENT_BUS_ADDRESS).handler(message -> {
             JsonObject payload = message.body();
@@ -94,6 +97,8 @@ public class EpagesApiClientVerticle extends AbstractVerticle {
             request.headers().add("Authorization", "Bearer " + token);
         }
         if (input != null) {
+            request.headers().add("Content-Type", "application/json");
+            request.headers().add("Content-Length", String.valueOf(input.length()));
             request.write(input);
         }
         request.exceptionHandler(exception -> future.fail(exception));

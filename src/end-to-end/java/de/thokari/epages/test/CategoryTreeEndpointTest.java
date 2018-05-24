@@ -3,6 +3,7 @@ package de.thokari.epages.test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.BeforeClass;
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith;
 import de.thokari.epages.app.EpagesApiClientVerticle;
 import de.thokari.epages.app.model.AppConfig;
 import de.thokari.epages.app.model.Model;
+import de.thokari.epages.test.model.EndToEndConfig;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
@@ -27,28 +29,32 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 @RunWith(VertxUnitRunner.class)
 public class CategoryTreeEndpointTest {
 
-    //final String apiUrl = "http://teamred-07.vm-intern.epages.com/rs/shops/DemoShop";
-    //final String token = "fqzx9OO6EBUA6jEPEvCF6NfO6QtAW1lz";
-
-    final String apiUrl = "http://teamred-09.vm-intern.epages.com/rs/shops/DemoShop";
-    final String token = "Hk58r9SXAHc4Xz710Qo2G59ZKPcWSfFo";
+    static String apiUrl;
+    static String token;
 
     final int tries = 50;
     final int pause = 100;
 
     final Vertx vertx = Vertx.vertx();
 
-    static JsonObject configJson;
     static AppConfig appConfig;
     static DeploymentOptions deploymentOpts;
+
+    static EndToEndConfig endToEndConfig;
 
     final Future<HttpServer> apiMockStarted = Future.future();
 
     @BeforeClass
     public static void readConfig() throws IOException {
-        configJson = new JsonObject(new String(Files.readAllBytes(Paths.get("config.test.json"))));
+        JsonObject configJson = new JsonObject(new String(Files.readAllBytes(Paths.get("config.test.json"))));
         deploymentOpts = new DeploymentOptions().setConfig(configJson);
-        appConfig = Model.fromJsonObject(configJson, AppConfig.class);
+
+        JsonObject endToEndConfigJson = new JsonObject(
+            new String(Files.readAllBytes(Paths.get("end-to-end-config.json"))));
+        endToEndConfig = Model.fromJsonObject(endToEndConfigJson, EndToEndConfig.class);
+
+        apiUrl = String.format("http://%s/rs/shops/%s", endToEndConfig.epagesHostname, endToEndConfig.shopName);
+        token = endToEndConfig.token;
     }
 
     @Test
@@ -66,27 +72,40 @@ public class CategoryTreeEndpointTest {
             AtomicInteger remaining = new AtomicInteger(tries);
             JsonObject categoryTreeCall = buildApiCall("category-tree");
 
-            // WHILE
-            vertx.setPeriodic(pause, event -> {
-                if (remaining.decrementAndGet() >= 0) {
-                    requestApi(categoryTreeCall, response -> {
+            requestApi(categoryTreeCall, categoryTreeResponse -> {
 
-                        // THEN
-                        context.assertTrue(response.succeeded(),
-                            "Received an error from category-tree endpoint:\n" + response.cause());
-                    });
-                } else {
-                    async.complete();
-                }
+                String categoryIdToBeRenamed = categoryTreeResponse.result().body().getString("categoryId");
+
+                // WHILE
+                vertx.setPeriodic(pause, event -> {
+                    if (remaining.decrementAndGet() >= 0) {
+                        requestApi(categoryTreeCall, response -> {
+
+                            // THEN
+                            context.assertTrue(response.succeeded(),
+                                "Received an error from category-tree endpoint:\n" + response.cause());
+                        });
+                    } else {
+                        async.complete();
+                    }
+                });
+
+                // WHEN
+                String renamePayload = new JsonObject() //
+                    .put("categoryId", categoryIdToBeRenamed) //
+                    .put("alias", "Categories") //
+                    .put("name", UUID.randomUUID().toString()) //
+                    .encodePrettily();
+
+                JsonObject categoriesCall = buildApiCall("categories/" + categoryIdToBeRenamed, "PUT", renamePayload);
+                requestApi(categoriesCall, response -> {
+
+                    // THEN
+                    context.assertTrue(response.succeeded(),
+                        "Category renaming failed with error:\n" + response.cause());
+                });
             });
 
-            // WHEN
-            JsonObject categoriesCall = buildApiCall("categories", "PUT", "{}");
-            requestApi(categoriesCall, response -> {
-
-                // THEN
-                context.assertTrue(response.succeeded(), "Category renaming failed with error:\n" + response.cause());
-            });
         });
 
         async.awaitSuccess(pause * tries + 1000);
