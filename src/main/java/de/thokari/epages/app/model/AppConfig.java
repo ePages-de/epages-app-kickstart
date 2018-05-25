@@ -36,7 +36,7 @@ public class AppConfig extends Config {
         @JsonProperty("appApiPath") String appApiPath,
         @JsonProperty("callbackPath") String callbackPath,
         @JsonProperty("database") DatabaseConfig database,
-        @JsonProperty("database") Integer httpClientTimeout) {
+        @JsonProperty("httpClientTimeout") Integer httpClientTimeout) {
 
         this.clientId = validate("clientId", overrideFromEnv("CLIENT_ID", clientId));
         this.clientSecret = validate("clientSecret", overrideFromEnv("CLIENT_SECRET", clientSecret));
