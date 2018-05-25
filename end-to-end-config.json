@@ -2,6 +2,6 @@
     "epagesHostname": "teamred-07.vm-intern.epages.com",
     "createShop": false,
     "shopName": "DemoShop",
-    "createPrivateApp": false,
+    "createPrivateApp": true,
     "token": "fqzx9OO6EBUA6jEPEvCF6NfO6QtAW1lz"
 }
