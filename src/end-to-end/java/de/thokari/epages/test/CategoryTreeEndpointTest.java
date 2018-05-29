@@ -81,7 +81,7 @@ public class CategoryTreeEndpointTest {
 
         final int tries = 50;
         final int pause = 100; // milliseconds
-        final int gracePeriod = 10000; // milliseconds, keep waiting this much longer for the test to finish
+        final int gracePeriod = 60000; // milliseconds, keep waiting this much longer for the test to finish
 
         // GIVEN
         apiClientVerticleDeployed.setHandler(deployed -> {
